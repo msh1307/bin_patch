@@ -14,17 +14,38 @@ ld_str = (buf[f:f+buf[f:].index(b'\x00')])
 ld_off = f
 assert b'ld' in ld_str
 sec = subprocess.run(['readelf','-S',args[1]],stdout=subprocess.PIPE).stdout.split(b'\n')
-f,f1=-1,-1
+f1=-1
+f = []
+flag = 0
 for i in sec:
     if b'VERNEED' in i:
-        f = int(i.split()[-1],16)
+        f.append(int(i.split()[-1],16))
+        flag = 1
+        continue
+    if flag == 1:
+        f.append(int(i.split()[0],16))
+        flag = 0 
     if b'.dynstr' in i:
         f1 = int(i.split()[-1],16)
-assert f != -1 and f1 != -1
-dynstr_off,needed_off = f1,f
-assert buf[needed_off:needed_off+2]==b'\x01\x00'
-off = int.from_bytes(buf[needed_off+4:needed_off+8],byteorder='little')
-libc_str = (buf[dynstr_off+off:dynstr_off+off+buf[dynstr_off+off:].index(b'\x00')])
+assert f != [] and f1 != -1
+
+dynstr_off,verneed_off,verneed_sz = f1,f[0],f[1]
+libc_str_off = -1
+assert verneed_sz&0xf == 0
+for i in range(verneed_sz//0x10):
+    tmp = buf[verneed_off+i*0x10:verneed_off+i*0x10+0x10]
+    if tmp[:2] != b'\x01\x00':
+        continue
+    off = int.from_bytes(tmp[4:8],byteorder='little')
+    t = (buf[dynstr_off+off:dynstr_off+off+buf[dynstr_off+off:].index(b'\x00')])
+    if b'libc' in t:
+        libc_str_off = dynstr_off+off
+        libc_str = t
+        break
+assert libc_str_off != -1 
+
+
+
 nld = b'./'+ld_str.split(b'/')[-1]
 assert len(ld_str)>=len(nld)
 nld,nlib = nld.ljust(len(ld_str),b'\x00'),b'./'+libc_str[2:]
@@ -33,7 +54,9 @@ ar = bytearray(buf)
 for i in range(len(nld)):
     ar[i+ld_off]=nld[i]
 for i in range(len(nlib)):
-    ar[i+dynstr_off+off] = nlib[i]
+    ar[i+libc_str_off] = nlib[i]
+print(hex(libc_str_off))
+    
 with open('out.bin','wb') as f:
     f.write(bytes(ar))
 print('Successfully patched')
