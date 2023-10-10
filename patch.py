@@ -49,13 +49,12 @@ assert libc_str_off != -1
 nld = b'./'+ld_str.split(b'/')[-1]
 assert len(ld_str)>=len(nld)
 nld,nlib = nld.ljust(len(ld_str),b'\x00'),b'./'+libc_str[2:]
-print(ld_str.decode(),'|',libc_str.decode(),'->',nld.decode(),'|',nlib.decode())
+print(ld_str.decode(),'->',nld.decode(),'\n'+libc_str.decode(),'->',nlib.decode())
 ar = bytearray(buf)
 for i in range(len(nld)):
     ar[i+ld_off]=nld[i]
 for i in range(len(nlib)):
     ar[i+libc_str_off] = nlib[i]
-print(hex(libc_str_off))
     
 with open('out.bin','wb') as f:
     f.write(bytes(ar))
