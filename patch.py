@@ -64,3 +64,4 @@ for i in need_patching:
 with open('out.bin','wb') as f:
     f.write(bytes(ar))
 print('Successfully patched')
+print('set debug-file-directory dbgdir')
