@@ -53,7 +53,7 @@ gef.py
 ![image](https://github.com/msh1307/init/assets/86157260/15b53bb7-0d6f-4f7f-8d8b-2bbfa345289f)
 
 using gef, it fails to recognize glibc version after patching a binary. <br>
-it requires little modification.
+it requires a little modification.
 ```
  3335 def get_libc_version():
  3336             
