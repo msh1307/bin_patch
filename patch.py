@@ -32,29 +32,34 @@ assert f != [] and f1 != -1
 dynstr_off,verneed_off,verneed_sz = f1,f[0],f[1]
 libc_str_off = -1
 assert verneed_sz&0xf == 0
+
+need_patching = []
 for i in range(verneed_sz//0x10):
     tmp = buf[verneed_off+i*0x10:verneed_off+i*0x10+0x10]
     if tmp[:2] != b'\x01\x00':
         continue
     off = int.from_bytes(tmp[4:8],byteorder='little')
     t = (buf[dynstr_off+off:dynstr_off+off+buf[dynstr_off+off:].index(b'\x00')])
-    if b'libc' in t:
-        libc_str_off = dynstr_off+off
-        libc_str = t
-        break
-assert libc_str_off != -1 
-
-
+    need_patching.append({
+        'string_offset':dynstr_off+off, 
+        'string':t
+    })
 
 nld = b'./'+ld_str.split(b'/')[-1]
 assert len(ld_str)>=len(nld)
-nld,nlib = nld.ljust(len(ld_str),b'\x00'),b'./'+libc_str[2:]
-print(ld_str.decode(),'->',nld.decode(),'\n'+libc_str.decode(),'->',nlib.decode())
+nld= nld.ljust(len(ld_str),b'\x00')
+print(ld_str.decode(),'->',nld.decode())
 ar = bytearray(buf)
 for i in range(len(nld)):
     ar[i+ld_off]=nld[i]
-for i in range(len(nlib)):
-    ar[i+libc_str_off] = nlib[i]
+for i in need_patching:
+    assert len(i['string']) > 2
+    nn = b'./'+i['string'][2:]
+    for j in range(len(nn)):
+        ar[j+i['string_offset']] = nn[j]
+    print(i['string'].decode(),'->',nn.decode())
+
+
     
 with open('out.bin','wb') as f:
     f.write(bytes(ar))
