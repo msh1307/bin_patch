@@ -1,8 +1,9 @@
 import sys,subprocess
 args = sys.argv
 with open(args[1],'rb') as f:
-    buf = f.read()
+    buf = f.read(0x100000)
 assert b'ELF' in buf
+arch = buf[-1]
 res = subprocess.run(['readelf','-l',args[1]],stdout=subprocess.PIPE).stdout.split(b'\n')
 f = -1
 for i in res:
@@ -18,16 +19,25 @@ f1=-1
 f = []
 flag = 0
 for i in sec:
+    t = i.split()
     if b'VERNEED' in i:
-        f.append(int(i.split()[-1],16))
-        flag = 1
+        if arch == 2:
+            f.append(int(t[-1],16))
+            flag = 1
+        else:
+            f.append(int(t[t.index(b'VERNEED')+2],16))
+            f.append(int(t[t.index(b'VERNEED')+3],16))
+            flag = 0
         continue
     if flag == 1:
-        f.append(int(i.split()[0],16))
+        f.append(int(t[0],16))
         flag = 0 
     if b'.dynstr' in i:
-        f1 = int(i.split()[-1],16)
-assert f != [] and f1 != -1
+        if arch ==2:
+            f1 = int(t[-1],16)
+        else:
+            f1 = int(t[t.index(b'STRTAB')+2],16)
+assert len(f) == 2 and f1 != -1
 
 dynstr_off,verneed_off,verneed_sz = f1,f[0],f[1]
 libc_str_off = -1
