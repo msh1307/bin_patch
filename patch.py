@@ -1,9 +1,27 @@
+#!/usr/bin/python3
 import sys,subprocess
 args = sys.argv
+
+if len(args) < 2:
+    exit(-1)
+
 with open(args[1],'rb') as f:
     buf = f.read(0x100000)
 assert b'ELF' in buf
-arch = buf[-1]
+arch = buf[4]
+if arch==2:
+    print("64-bit binary detected")
+elif arch==1:
+    print("32-bit binary detected")
+else:
+    print("err")
+    exit(-1)
+print()
+
+pld = 0
+if len(args) > 2:
+    pld = '-pld' in args[2] or '--patch-only-ld' in args[2]
+
 res = subprocess.run(['readelf','-l',args[1]],stdout=subprocess.PIPE).stdout.split(b'\n')
 f = -1
 for i in res:
@@ -62,12 +80,13 @@ print(ld_str.decode(),'->',nld.decode())
 ar = bytearray(buf)
 for i in range(len(nld)):
     ar[i+ld_off]=nld[i]
-for i in need_patching:
-    assert len(i['string']) > 2
-    nn = b'./'+i['string'][2:]
-    for j in range(len(nn)):
-        ar[j+i['string_offset']] = nn[j]
-    print(i['string'].decode(),'->',nn.decode())
+if not pld:
+    for i in need_patching:
+        assert len(i['string']) > 2
+        nn = b'./'+i['string'][2:]
+        for j in range(len(nn)):
+            ar[j+i['string_offset']] = nn[j]
+        print(i['string'].decode(),'->',nn.decode())
 
 
     
